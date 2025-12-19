@@ -9,13 +9,13 @@ def generate_thread_id():
     thread_id=uuid.uuid4()
     return thread_id
 
-def reset_chat():
+def reset_chat():    # genrate new thread id----> in current thead id state = thread_id  ---> add thread in chat threads ---> make a session state msg history list
     thread_id=generate_thread_id()
     st.session_state['thread_id']=thread_id
     add_thread( st.session_state['thread_id'])
     st.session_state['message_history']=[]
 
-def add_thread(thread_id):
+def add_thread(thread_id): # adds current thread to the chat threads session state
     if thread_id not in st.session_state['chat_threads']:
         st.session_state['chat_threads'].append(thread_id)
 
@@ -32,7 +32,7 @@ if 'message_history' not in st.session_state:
 if 'thread_id' not in st.session_state:
     st.session_state['thread_id']=generate_thread_id
 
-if 'chat_threads' not in st.session_state:
+if 'chat_threads' not in st.session_state:  #get all chats 
     st.session_state['chat_threads'] = retrieve_all_threads()
 
 add_thread(st.session_state['thread_id'])

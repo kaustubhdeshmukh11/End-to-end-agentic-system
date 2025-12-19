@@ -51,13 +51,13 @@ class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 def chat_node(state: ChatState):
-    messages = state['messages']
+    messages = state['messages']      
     # The local model works exactly the same way as the cloud one now
-    response = llm.invoke(messages)
-    return {"messages": [response]}
+    response = llm.invoke(messages) 
+    return {"messages": [response]} 
 
 #database connection 
-connection=sqlite3.connect(database='database.db',check_same_thread=False)
+connection=sqlite3.connect(database='database.db',check_same_thread=False)   
 
 
 # Checkpointer
@@ -72,8 +72,8 @@ chatbot = graph.compile(checkpointer=checkpointer)
 
 def retrieve_all_threads():
     all_threads=set()
-    for checkpoint in checkpointer.list(None):  #none because we wanrt to iterate for all checkpointers not any specific thread's checkpoints
-        all_threads.add(checkpoint.config['configurable']['thread_id'])
+    for checkpoint in checkpointer.list(None):  #none because we wanrt to iterate for all checkpointers not any specific thread's checkpoints 
+        all_threads.add(checkpoint.config['configurable']['thread_id'])  
 
     return list(all_threads)
 

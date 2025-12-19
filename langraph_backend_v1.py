@@ -1,15 +1,14 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
 from langchain_core.messages import BaseMessage
+from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
 
-# --- NEW IMPORTS FOR HUGGING FACE ---
-from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
-load_dotenv()
 
 # --- STEP 1: LOAD LOCAL MODEL ---
 # Good small options: 
@@ -17,28 +16,29 @@ load_dotenv()
 # 2. "Qwen/Qwen2.5-0.5B-Instruct" (Newer, smarter, very small)
 # 3. "microsoft/Phi-3-mini-4k-instruct" (Smarter, but requires more RAM)
 
-model_id = "Qwen/Qwen2.5-0.5B-Instruct" 
+# model_id = "Qwen/Qwen2.5-0.5B-Instruct" 
 
-print(f"Loading {model_id} locally... this may take a minute.")
+# print(f"Loading {model_id} locally... this may take a minute.")
 
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(model_id)
+# tokenizer = AutoTokenizer.from_pretrained(model_id)
+# model = AutoModelForCausalLM.from_pretrained(model_id)
 
-# Create a standard Hugging Face pipeline
-pipe = pipeline(
-    "text-generation",
-    model=model,
-    tokenizer=tokenizer,
-    max_new_tokens=256,
-    temperature=0.7,
-    repetition_penalty=1.1,
-    return_full_text=False,
-    # device=0 # Uncomment this if you have a GPU (NVIDIA)
-)
+# # Create a standard Hugging Face pipeline
+# pipe = pipeline(
+#     "text-generation",
+#     model=model,
+#     tokenizer=tokenizer,
+#     max_new_tokens=256,
+#     temperature=0.7,
+#     repetition_penalty=1.1,
+#     return_full_text=False,
+#     # device=0 # Uncomment this if you have a GPU (NVIDIA)
+# )
 
-# Wrap it in LangChain's interface
-hf_pipeline = HuggingFacePipeline(pipeline=pipe)
-llm = ChatHuggingFace(llm=hf_pipeline)
+# # Wrap it in LangChain's interface
+# hf_pipeline = HuggingFacePipeline(pipeline=pipe)
+# llm = ChatHuggingFace(llm=hf_pipeline)
+llm = ChatGoogleGenerativeAI(model='gemini-2.0-flash-lite')
 
 # --- END NEW MODEL SETUP ---
 
