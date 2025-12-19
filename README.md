@@ -1,10 +1,16 @@
 # Autonomous Deep-Research Agent
 An autonomous AI agent that recursively performs 
+
 -web research 
+
 -downloads academic papers from web 
+
 -answers questions on uploded/ downloded paper from web using rag
+
 -remembers past conversations
+
 -multiple chats(dynamic threading)
+
 -a clean UI
 
 🚀 Key Features
