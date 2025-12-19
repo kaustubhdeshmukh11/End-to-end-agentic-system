@@ -1,11 +1,13 @@
 # Autonomous Deep-Research Agent
 An autonomous AI agent that recursively performs 
 
--web research 
+- answers reserch related queries using lLlama 3.3 70B (via Groq)
 
--downloads academic papers from web 
+-web research (Tool)
 
--answers questions on uploded/ downloded paper from web using rag
+-downloads academic papers from web (Tool)
+
+-answers questions on uploded/ downloded paper from web using RAG
 
 -remembers past conversations
 
