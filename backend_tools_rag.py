@@ -22,6 +22,12 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import START, END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
+#----------------------------------------
+from langchain_community.tools.tavily_search import TavilySearchResults # <--- NEW IMPORT
+import arxiv
+
+# Add this at the top
+from prompts import RESEARCH_AGENT_SYSTEM_PROMPT
 
 load_dotenv()
 
@@ -29,32 +35,15 @@ load_dotenv()
 # 1. SETUP GOOGLE STACK
 # -------------------
 
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 
-# ---------------------------------------------------------
-# 1. LLM: Qwen 2.5 72B (Running on Hugging Face Cloud)
-# ---------------------------------------------------------
-# We use 'HuggingFaceEndpoint' which connects to the free Inference API.
-# This does NOT download the model to your laptop.
+
+
 llm = ChatGroq(
     model="openai/gpt-oss-20b",
     temperature=0,
     max_retries=2,
     # api_key is automatically read from os.environ["GROQ_API_KEY"]
 )
-
-# Wrap it in ChatHuggingFace to enable "Tool Binding" support
-# llm = ChatHuggingFace(llm=llm_engine)
-
-# ---------------------------------------------------------
-# 2. EMBEDDINGS: MiniLM (Running on Hugging Face Cloud)
-# ---------------------------------------------------------
-# This sends text to HF API and gets vectors back. Zero local RAM usage.
-# embeddings = HuggingFaceInferenceAPIEmbeddings(
-#     api_key=os.environ["HF_TOKEN"],
-#     model_name="Qwen/Qwen3-Embedding-8B" 
-# )
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="models/text-embedding-004"
@@ -66,12 +55,64 @@ embeddings = GoogleGenerativeAIEmbeddings(
 # You didn't include this in your snippet, but for the graph to work,
 # you MUST tell the LLM about the tools using .bind_tools()
 
-search_tool = DuckDuckGoSearchRun()
-tools = [search_tool] 
+# import arxiv # <--- Add to imports
+
+# ... existing imports ...
+
+@tool
+def download_arxiv_paper(query: str, thread_id: str) -> str:
+    """
+    Search Arxiv for a paper, DOWNLOAD the PDF, and Index it for RAG.
+    Use this when the user wants to 'read', 'download', or 'analyze' a specific paper.
+    ALWAYS pass the thread_id.
+    """
+    try:
+        # 1. Search Arxiv
+        client = arxiv.Client()
+        search = arxiv.Search(
+            query=query,
+            max_results=1,
+            sort_by=arxiv.SortCriterion.Relevance
+        )
+        
+        # Get the first result
+        results = list(client.results(search))
+        if not results:
+            return "No paper found on Arxiv for that query."
+        
+        paper = results[0]
+        filename = f"{paper.entry_id.split('/')[-1]}.pdf" # e.g. 2310.06825.pdf
+        
+        # 2. Download to a local folder
+        # Ensure directory exists
+        if not os.path.exists("downloads"):
+            os.makedirs("downloads")
+            
+        file_path = paper.download_pdf(dirpath="./downloads", filename=filename)
+        
+        # 3. AUTO-INGESTION (The Magic Step)
+        # We read the file we just downloaded and feed it to your RAG system
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+            
+        # Re-use your existing logic to index it
+        summary = ingest_pdf(file_bytes, thread_id, filename=paper.title)
+        
+        return (f"Successfully downloaded '{paper.title}' to {file_path}. "
+                f"It has been indexed ({summary['chunks']} chunks) and is ready for questions.")
+
+    except Exception as e:
+        return f"Failed to download paper: {str(e)}"
+
+
+
+
+search_tool = TavilySearchResults(max_results=3)
+
 
 # Qwen supports tool calling, but LlamaCpp integration can be tricky.
 # This binds the tools so the model knows they exist.
-llm_with_tools = llm.bind_tools(tools)
+
 
 # -------------------
 # 2. PDF retriever store (per thread)
@@ -128,7 +169,7 @@ def ingest_pdf(file_bytes: bytes, thread_id: str, filename: Optional[str] = None
 # -------------------
 # 3. Tools
 # -------------------
-search_tool = DuckDuckGoSearchRun(region="us-en")
+# search_tool = DuckDuckGoSearchRun(region="us-en")
 
 
 @tool
@@ -200,7 +241,7 @@ def rag_tool(query: str, thread_id: Optional[str] = None) -> dict:
     }
 
 
-tools = [search_tool, calculator, rag_tool]
+tools = [search_tool, calculator, rag_tool,download_arxiv_paper]
 llm_with_tools = llm.bind_tools(tools)
 
 # -------------------
@@ -219,15 +260,12 @@ def chat_node(state: ChatState, config=None):
     if config and isinstance(config, dict):
         thread_id = config.get("configurable", {}).get("thread_id")
 
-    system_message = SystemMessage(
-        content=(
-            "You are a helpful assistant. For questions about the uploaded PDF, call "
-            "the `rag_tool` and include the thread_id "
-            f"`{thread_id}`. You can also use the web search, stock price, and "
-            "calculator tools when helpful. If no document is available, ask the user "
-            "to upload a PDF."
-        )
-    )
+    # --- NEW CODE: Use the imported template ---
+    # We format the string to inject the thread_id dynamically
+    system_content = RESEARCH_AGENT_SYSTEM_PROMPT.format(thread_id=thread_id)
+    
+    system_message = SystemMessage(content=system_content)
+    # -------------------------------------------
 
     messages = [system_message, *state["messages"]]
     response = llm_with_tools.invoke(messages, config=config)
@@ -239,7 +277,7 @@ tool_node = ToolNode(tools)
 # -------------------
 # 6. Checkpointer
 # -------------------
-conn = sqlite3.connect(database="chatbot.db", check_same_thread=False)
+conn = sqlite3.connect(database="research.db", check_same_thread=False)
 checkpointer = SqliteSaver(conn=conn)
 
 # -------------------
