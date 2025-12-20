@@ -17,6 +17,12 @@ A stateful, autonomous AI agent that recursively performs web research, download
     * **Knowledge:** FAISS (Vector) + SQLite (Relational).
 
 ---
+<img width="1353" height="997" alt="image" src="https://github.com/user-attachments/assets/c1b4fe40-a890-4a9d-bc37-b21e7c5bf951" />
+<img width="1148" height="702" alt="image" src="https://github.com/user-attachments/assets/3561d75a-4cfa-4bf2-9cf1-227e712342c1" />
+<img width="1152" height="701" alt="image" src="https://github.com/user-attachments/assets/f9fcb998-87b5-4bfb-8244-b0724734532e" />
+
+
+
 
 ## 🧩 System Architecture
 
